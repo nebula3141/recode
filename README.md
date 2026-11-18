@@ -33,13 +33,30 @@ Read-only, from `%USERPROFILE%\.claude`:
 
 The launcher never writes into `.claude`. Its own state (pins, notes, tags, renames, presets, settings, index cache) lives in `%APPDATA%\ReCode\data` (or `%APPDATA%\Claude Launcher\data` if you used the app under its earlier name). Transcripts are indexed incrementally, so only new lines are read after the first run.
 
-## Run it
+## Install
+
+**Installer:** download `ReCode-Setup-<version>.exe` from [Releases](https://github.com/nebula3141/recode/releases). It installs for your user only (no admin), adds Start menu and Desktop shortcuts, and registers an uninstaller in Settings > Apps.
+
+**PowerShell, one line:**
+
+```powershell
+irm https://raw.githubusercontent.com/nebula3141/recode/main/install.ps1 | iex
+```
+
+This downloads the portable zip from the newest release, checks its SHA-256 against `SHA256SUMS.txt`, installs to `%LOCALAPPDATA%\Programs\ReCode`, and adds shortcuts and a Settings > Apps entry. Options: `-Version 1.0.0-rc.1`, `-Prerelease`, `-NoDesktopShortcut`. To remove it: Settings > Apps > ReCode, or `uninstall.ps1` (add `-RemoveData` to also delete your pins, notes and settings).
+
+**Portable:** unzip `ReCode-<version>-win-x64.zip` anywhere and run `ReCode.exe`.
+
+Builds are not code-signed yet, so Windows SmartScreen may warn on first run (More info → Run anyway).
+
+## Build from source
 
 ```powershell
 npm install
 npm start                 # run from source
-npm run package           # build dist\ReCode-win32-x64\ReCode.exe
-npm run shortcuts         # add Start menu + Desktop shortcuts to the built app
+npm run release           # installer, zip, install scripts and SHA256SUMS.txt in release\<version>\
+npm run package           # quick local build: dist\ReCode-win32-x64\ReCode.exe
+npm run shortcuts         # Start menu + Desktop shortcuts to that local build
 ```
 
 Requires Node.js to build, and Claude Code (`claude`) on PATH (or set its full path in Settings). Windows Terminal is used when installed; otherwise sessions open in a PowerShell window.

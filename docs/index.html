@@ -63,7 +63,7 @@
   section { padding: 96px 0 0; }
   .kicker { font: 500 13px var(--mono); color: var(--accent); letter-spacing: 0.02em; margin-bottom: 10px; }
   h2 { font: 700 clamp(28px, 4vw, 42px)/1.12 var(--display); letter-spacing: -0.025em; margin: 0 0 16px; }
-  h3 { font: 650 19px/1.3 var(--display); margin: 0 0 8px; }
+  h3 { font: 650 22px/1.25 var(--display); letter-spacing: -0.01em; margin: 0 0 8px; }
   p { margin: 0 0 14px; }
   .muted { color: var(--text-2); }
 
@@ -90,8 +90,8 @@
   .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }
   @media (max-width: 880px) { .grid3 { grid-template-columns: 1fr; } }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 26px; }
-  .card .ico { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); margin-bottom: 18px; }
-  .card .ico svg { width: 20px; height: 20px; }
+  .card h3 { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .card h3 svg { flex: none; width: 22px; height: 22px; color: var(--accent); }
   .card p { color: var(--text-2); font-size: 15px; margin: 0; }
   code { font: 0.9em var(--mono); background: var(--surface-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; }
 
@@ -104,6 +104,10 @@
   @media (max-width: 880px) { .install { grid-template-columns: 1fr; gap: 24px; } }
   pre { margin: 0; background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 12px; padding: 22px 24px; overflow-x: auto; font: 14px/1.8 var(--mono); color: var(--text); }
   pre .c { color: var(--muted); }
+  .cta.left { justify-content: flex-start; margin-top: 26px; }
+  .steps { display: grid; gap: 10px; min-width: 0; }
+  .step-label { font: 500 13px var(--mono); color: var(--text-2); margin-top: 8px; }
+  .steps pre { white-space: pre; }
   pre .p { color: var(--accent); user-select: none; }
   .req { margin-top: 20px; display: grid; gap: 8px; color: var(--text-2); font-size: 15px; }
 
@@ -224,18 +228,15 @@
       <p class="muted" style="max-width: 680px">No account, no server, no telemetry. ReCode indexes the files Claude Code writes to <code>%USERPROFILE%\.claude</code> and never modifies them.</p>
       <div class="grid3">
         <div class="card">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
-          <h3>Indexed incrementally</h3>
+          <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Indexed incrementally</h3>
           <p>Transcripts are read once, then only new lines. Hundreds of sessions and gigabytes of history load in under a second.</p>
         </div>
         <div class="card">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 5 4-5 4M12 17h7"/></svg></div>
-          <h3>Resumes in a real terminal</h3>
+          <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 5 4-5 4M12 17h7"/></svg>Resumes in a real terminal</h3>
           <p>Opens a Windows Terminal tab (or a PowerShell window) in the session's folder and runs <code>claude --resume</code> with your arguments passed through exactly.</p>
         </div>
         <div class="card">
-          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
-          <h3>Yours, locally</h3>
+          <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Yours, locally</h3>
           <p>Pins, notes, tags and presets live in the app's own folder. Sessions whose transcripts were cleaned up still show from your prompt history.</p>
         </div>
       </div>
@@ -255,20 +256,31 @@
     <div class="wrap install">
       <div>
         <div class="kicker">Install</div>
-        <h2>Build it in a minute.</h2>
-        <p class="muted">ReCode is an Electron app with no build step for the UI. Clone it, install, and package a standalone <code>ReCode.exe</code> with Start menu and Desktop shortcuts.</p>
+        <h2>Download, or one line of PowerShell.</h2>
+        <p class="muted">The installer sets ReCode up for your user account only — no admin rights — with Start menu and Desktop shortcuts and an uninstaller in Settings &gt; Apps.</p>
+        <div class="cta left">
+          <a class="btn primary" href="https://github.com/nebula3141/recode/releases">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14"/></svg>
+            Download for Windows
+          </a>
+          <a class="btn" href="https://github.com/nebula3141/recode/releases">Portable zip</a>
+        </div>
         <div class="req">
-          <span>Windows 10 or 11</span>
-          <span>Node.js 20+ to build</span>
+          <span>Windows 10 or 11, x64</span>
           <span>Claude Code (<code>claude</code>) on PATH, or its path set in Settings</span>
+          <span>Builds are not code-signed yet: SmartScreen may ask you to confirm (More info &rarr; Run anyway). Every file's SHA-256 is listed in the release.</span>
         </div>
       </div>
-      <pre><span class="p">&gt; </span>git clone https://github.com/nebula3141/recode
+      <div class="steps">
+        <div class="step-label">Install with PowerShell</div>
+        <pre><span class="p">&gt; </span>irm https://raw.githubusercontent.com/nebula3141/recode/main/install.ps1 | iex</pre>
+        <div class="step-label">Or build from source</div>
+        <pre><span class="p">&gt; </span>git clone https://github.com/nebula3141/recode
 <span class="p">&gt; </span>cd recode
 <span class="p">&gt; </span>npm install
 <span class="p">&gt; </span>npm start               <span class="c"># run from source</span>
-<span class="p">&gt; </span>npm run package         <span class="c"># build dist\ReCode-win32-x64\ReCode.exe</span>
-<span class="p">&gt; </span>npm run shortcuts       <span class="c"># Start menu + Desktop shortcuts</span></pre>
+<span class="p">&gt; </span>npm run release         <span class="c"># installer + zip in release\</span></pre>
+      </div>
     </div>
   </section>
 </main>

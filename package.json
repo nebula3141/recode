@@ -1,23 +1,75 @@
 {
   "name": "recode",
   "productName": "ReCode",
-  "version": "1.0.0",
+  "version": "1.0.0-rc.1",
   "description": "Browse every Claude Code session on your PC and resume any of them with one click.",
   "main": "electron/main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
     "package": "node scripts/package.js",
-    "shortcuts": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-shortcuts.ps1"
+    "shortcuts": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-shortcuts.ps1",
+    "release": "node scripts/make-release.js"
   },
   "devDependencies": {
     "@electron/packager": "^20.3.0",
-    "electron": "^45.3.4"
+    "electron": "^45.3.4",
+    "electron-builder": "^26.18.0"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/nebula3141/recode.git"
   },
-  "homepage": "https://nebula3141.github.io/recode/"
+  "homepage": "https://nebula3141.github.io/recode/",
+  "author": "nebula3141",
+  "build": {
+    "appId": "io.github.nebula3141.recode",
+    "productName": "ReCode",
+    "copyright": "Copyright (c) 2026 nebula3141",
+    "directories": {
+      "output": "release/${version}",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**",
+      "lib/**",
+      "public/**",
+      "package.json",
+      "LICENSE"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "ReCode-${version}-win-x64.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ReCode",
+      "uninstallDisplayName": "ReCode",
+      "deleteAppDataOnUninstall": false,
+      "license": "LICENSE",
+      "artifactName": "ReCode-Setup-${version}.${ext}"
+    },
+    "publish": null
+  }
 }
