@@ -1,0 +1,23 @@
+{
+  "name": "recode",
+  "productName": "ReCode",
+  "version": "1.0.0",
+  "description": "Browse every Claude Code session on your PC and resume any of them with one click.",
+  "main": "electron/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "package": "node scripts/package.js",
+    "shortcuts": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-shortcuts.ps1"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^45.3.4"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nebula3141/recode.git"
+  },
+  "homepage": "https://nebula3141.github.io/recode/"
+}

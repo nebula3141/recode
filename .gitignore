@@ -1,0 +1,4 @@
+node_modules/
+dist/
+data/
+.impeccable/hook.cache.json

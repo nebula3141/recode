@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReCode — pick up where you left off in Claude Code</title>
+<meta name="description" content="ReCode is a Windows desktop app that finds every Claude Code session on your PC, shows what each one was doing and when, and resumes any of them in a terminal with one click.">
+<meta property="og:title" content="ReCode">
+<meta property="og:description" content="Every Claude Code session on your PC, and one click to resume it.">
+<meta property="og:image" content="img/home.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #131210; --bg-2: #0f0e0d; --surface: #1a1917; --surface-2: #201e1c; --line: #2b2926; --line-2: #3a3733;
+    --text: #ede9e3; --text-2: #b8b1a7; --muted: #938c82;
+    --accent: #e2774f; --accent-hover: #ec8862; --accent-ink: #1d0f09; --accent-soft: rgba(226, 119, 79, 0.13);
+    --live: #4cc386; --wait: #e8b445; --busy: #8ba7ff;
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+    --display: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "Cascadia Mono", "Cascadia Code", "SF Mono", Consolas, ui-monospace, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  img { display: block; max-width: 100%; height: auto; }
+  .wrap { width: min(1160px, 100% - 32px); margin-inline: auto; }
+
+  /* nav */
+  .nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .nav .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; text-decoration: none; font-size: 17px; }
+  .brand img { width: 28px; height: 28px; }
+  .nav nav { display: flex; gap: 22px; margin-left: auto; font-size: 14.5px; color: var(--text-2); }
+  .nav nav a { text-decoration: none; }
+  .nav nav a:hover { color: var(--text); }
+  @media (max-width: 640px) { .nav nav a.opt { display: none; } }
+
+  /* buttons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 8px; font-weight: 600; font-size: 15px; text-decoration: none; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--text); transition: background .15s, border-color .15s; }
+  .btn:hover { border-color: var(--muted); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn svg { width: 18px; height: 18px; }
+
+  /* hero */
+  .hero { padding: 88px 0 40px; text-align: center; }
+  .eyebrow { display: inline-flex; gap: 8px; align-items: center; font: 500 13px var(--mono); color: var(--text-2); border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 12px; margin-bottom: 26px; }
+  .eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--live); }
+  h1 { font: 700 clamp(40px, 7vw, 76px)/1.03 var(--display); letter-spacing: -0.035em; margin: 0 auto 22px; max-width: 14ch; }
+  h1 em { font-style: normal; color: var(--accent); }
+  .lede { font-size: clamp(17px, 2vw, 20px); color: var(--text-2); max-width: 640px; margin: 0 auto 34px; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .term { font: 14px var(--mono); color: var(--text-2); margin-top: 26px; }
+  .term b { color: var(--accent); font-weight: 500; }
+
+  /* window frame for screenshots */
+  .shot { border-radius: 12px; overflow: hidden; border: 1px solid var(--line-2); background: var(--bg-2); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.4); }
+  .hero .shot { margin: 64px auto 0; max-width: 1160px; }
+
+  /* sections */
+  section { padding: 96px 0 0; }
+  .kicker { font: 500 13px var(--mono); color: var(--accent); letter-spacing: 0.02em; margin-bottom: 10px; }
+  h2 { font: 700 clamp(28px, 4vw, 42px)/1.12 var(--display); letter-spacing: -0.025em; margin: 0 0 16px; }
+  h3 { font: 650 19px/1.3 var(--display); margin: 0 0 8px; }
+  p { margin: 0 0 14px; }
+  .muted { color: var(--text-2); }
+
+  .feature { display: grid; grid-template-columns: 5fr 7fr; gap: 56px; align-items: center; padding: 56px 0; border-top: 1px solid var(--line); }
+  .feature:first-of-type { border-top: 0; }
+  .feature.flip { grid-template-columns: 7fr 5fr; }
+  .feature.flip .copy { order: 2; }
+  .feature ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; }
+  .feature li { display: flex; gap: 10px; color: var(--text-2); }
+  .feature li::before { content: ""; flex: none; width: 6px; height: 6px; margin-top: 10px; border-radius: 50%; background: var(--accent); }
+  @media (max-width: 880px) {
+    .feature, .feature.flip { grid-template-columns: 1fr; gap: 28px; padding: 40px 0; }
+    .feature.flip .copy { order: 0; }
+  }
+
+  .states { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 600; padding: 4px 11px; border-radius: 999px; }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.busy { color: var(--busy); background: rgba(139, 167, 255, 0.14); }
+  .pill.wait { color: var(--wait); background: rgba(232, 180, 69, 0.13); }
+  .pill.idle { color: var(--live); background: rgba(76, 195, 134, 0.13); }
+
+  /* principles */
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }
+  @media (max-width: 880px) { .grid3 { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 26px; }
+  .card .ico { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); margin-bottom: 18px; }
+  .card .ico svg { width: 20px; height: 20px; }
+  .card p { color: var(--text-2); font-size: 15px; margin: 0; }
+  code { font: 0.9em var(--mono); background: var(--surface-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; }
+
+  /* keyboard */
+  .keys { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 28px; color: var(--text-2); font-size: 15px; }
+  kbd { font: 12.5px var(--mono); color: var(--text); background: var(--surface-2); border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 5px; padding: 2px 7px; margin-right: 6px; }
+
+  /* install */
+  .install { display: grid; grid-template-columns: 5fr 7fr; gap: 48px; align-items: start; }
+  @media (max-width: 880px) { .install { grid-template-columns: 1fr; gap: 24px; } }
+  pre { margin: 0; background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 12px; padding: 22px 24px; overflow-x: auto; font: 14px/1.8 var(--mono); color: var(--text); }
+  pre .c { color: var(--muted); }
+  pre .p { color: var(--accent); user-select: none; }
+  .req { margin-top: 20px; display: grid; gap: 8px; color: var(--text-2); font-size: 15px; }
+
+  footer { margin-top: 110px; border-top: 1px solid var(--line); padding: 34px 0 48px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; }
+  footer a { color: var(--text-2); }
+
+  @media (max-width: 640px) {
+    .term .muted { display: none; }
+    .hero { padding-top: 56px; }
+    section { padding-top: 64px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="icon.svg" alt="">ReCode</a>
+    <nav>
+      <a class="opt" href="#features">Features</a>
+      <a class="opt" href="#how">How it works</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/nebula3141/recode">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <div class="eyebrow"><span class="dot"></span>A desktop home for Claude Code</div>
+      <h1>Pick up <em>exactly</em> where you left off.</h1>
+      <p class="lede">ReCode finds every Claude Code session on your PC, shows what each one was doing and when, and resumes any of them in a terminal with one click.</p>
+      <div class="cta">
+        <a class="btn primary" href="#install">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14"/></svg>
+          Get ReCode
+        </a>
+        <a class="btn" href="https://github.com/nebula3141/recode">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.3 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg>
+          View source
+        </a>
+      </div>
+      <div class="term"><b>&gt;</b> claude --resume 40ec7303-…&nbsp; <span class="muted">— without hunting for the id</span></div>
+      <div class="shot"><img src="img/home.png" width="1440" height="900" alt="ReCode home screen: the session you last left with Claude's recap, two running sessions, recent sessions and today's activity"></div>
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="feature">
+        <div class="copy">
+          <div class="kicker">Sessions</div>
+          <h2>Every session, with the context to choose.</h2>
+          <p class="muted">Sessions are grouped by day and searchable across titles, prompts, edited files and your own notes. Pick one and see Claude's recap of where it left off, your last message, and how it started.</p>
+          <ul>
+            <li>Active time, prompts, tool calls, tokens, model and lines changed</li>
+            <li>Pin, rename, tag and annotate sessions; hide the noise</li>
+            <li>Resume, fork, or open with a different model, permission mode or effort</li>
+          </ul>
+        </div>
+        <div class="shot"><img src="img/sessions.png" width="1440" height="900" loading="lazy" alt="Sessions list grouped by day, with a detail pane showing recap, last message and stats"></div>
+      </div>
+
+      <div class="feature flip">
+        <div class="copy">
+          <div class="kicker">Conversation</div>
+          <h2>Read back before you jump in.</h2>
+          <p class="muted">The full conversation renders inside the app, with every tool call, its result, compactions and recaps, so you can find the moment that matters before resuming.</p>
+        </div>
+        <div class="shot"><img src="img/conversation.png" width="1440" height="900" loading="lazy" alt="A session's conversation with prompts, Claude replies, tool calls and a recap"></div>
+      </div>
+
+      <div class="feature">
+        <div class="copy">
+          <div class="kicker">Running</div>
+          <h2>Know which session needs you.</h2>
+          <p class="muted">Live Claude Code processes are listed with their state, refreshed every few seconds. When one is waiting on a permission prompt, it says so — and what for.</p>
+          <div class="states"><span class="pill busy">Working</span><span class="pill wait">Needs you</span><span class="pill idle">Idle</span></div>
+        </div>
+        <div class="shot"><img src="img/running.png" width="1440" height="900" loading="lazy" alt="Running sessions with Working and Needs you states"></div>
+      </div>
+
+      <div class="feature flip">
+        <div class="copy">
+          <div class="kicker">Timeline</div>
+          <h2>What was active, and when.</h2>
+          <p class="muted">A year of activity at a glance, then any single day laid out session by session, with the prompts you typed that day. Reuse any prompt in a new session.</p>
+        </div>
+        <div class="shot"><img src="img/timeline.png" width="1440" height="900" loading="lazy" alt="Activity heatmap and a per-day chart of active sessions"></div>
+      </div>
+
+      <div class="feature">
+        <div class="copy">
+          <div class="kicker">Insights</div>
+          <h2>Where your time actually went.</h2>
+          <p class="muted">Active hours per day, when in the day you work, time per project, and the tools and models Claude used — over 7 days, 30, 90 or all time.</p>
+        </div>
+        <div class="shot"><img src="img/insights.png" width="1440" height="900" loading="lazy" alt="Insights: active hours per day, prompts by hour, time per project"></div>
+      </div>
+
+      <div class="feature flip">
+        <div class="copy">
+          <div class="kicker">Light or dark</div>
+          <h2>Fits in next to your terminal.</h2>
+          <p class="muted">Follows your Windows theme, or pick one. The title bar matches.</p>
+        </div>
+        <div class="shot"><img src="img/light.png" width="1440" height="900" loading="lazy" alt="ReCode in the light theme"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="kicker">How it works</div>
+      <h2>Reads what Claude Code already keeps.</h2>
+      <p class="muted" style="max-width: 680px">No account, no server, no telemetry. ReCode indexes the files Claude Code writes to <code>%USERPROFILE%\.claude</code> and never modifies them.</p>
+      <div class="grid3">
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
+          <h3>Indexed incrementally</h3>
+          <p>Transcripts are read once, then only new lines. Hundreds of sessions and gigabytes of history load in under a second.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 5 4-5 4M12 17h7"/></svg></div>
+          <h3>Resumes in a real terminal</h3>
+          <p>Opens a Windows Terminal tab (or a PowerShell window) in the session's folder and runs <code>claude --resume</code> with your arguments passed through exactly.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+          <h3>Yours, locally</h3>
+          <p>Pins, notes, tags and presets live in the app's own folder. Sessions whose transcripts were cleaned up still show from your prompt history.</p>
+        </div>
+      </div>
+      <div class="keys">
+        <span><kbd>Ctrl K</kbd>search everything</span>
+        <span><kbd>N</kbd>new session</span>
+        <span><kbd>J</kbd><kbd>K</kbd>move</span>
+        <span><kbd>Enter</kbd>resume</span>
+        <span><kbd>F</kbd>fork</span>
+        <span><kbd>P</kbd>pin</span>
+        <span>double-click any session to resume it</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap install">
+      <div>
+        <div class="kicker">Install</div>
+        <h2>Build it in a minute.</h2>
+        <p class="muted">ReCode is an Electron app with no build step for the UI. Clone it, install, and package a standalone <code>ReCode.exe</code> with Start menu and Desktop shortcuts.</p>
+        <div class="req">
+          <span>Windows 10 or 11</span>
+          <span>Node.js 20+ to build</span>
+          <span>Claude Code (<code>claude</code>) on PATH, or its path set in Settings</span>
+        </div>
+      </div>
+      <pre><span class="p">&gt; </span>git clone https://github.com/nebula3141/recode
+<span class="p">&gt; </span>cd recode
+<span class="p">&gt; </span>npm install
+<span class="p">&gt; </span>npm start               <span class="c"># run from source</span>
+<span class="p">&gt; </span>npm run package         <span class="c"># build dist\ReCode-win32-x64\ReCode.exe</span>
+<span class="p">&gt; </span>npm run shortcuts       <span class="c"># Start menu + Desktop shortcuts</span></pre>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>ReCode · MIT licensed · Screenshots use generated demo data.</span>
+    <span>An independent project, not affiliated with Anthropic. <a href="https://github.com/nebula3141/recode">Source on GitHub</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

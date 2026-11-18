@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "public/styles.css"
+        ],
+        "createdAt": "2026-11-18T20:40:05.139Z",
+        "reason": "Claude: only hit is .md blockquote's 3px neutral --line-2 left rule, the conventional quote marker in rendered markdown, not a card accent"
+      }
+    ]
+  }
+}
