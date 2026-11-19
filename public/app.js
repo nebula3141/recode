@@ -46,7 +46,8 @@ async function loadState() {
   if (S.data && d.meta.historyCount !== S.data.meta.historyCount) S.history = null;
   S.data = d;
   S.rev = d.meta.rev;
-  S.byId = new Map(d.sessions.map((s) => [s.id, s]));
+  // Earlier parts of continued conversations aren't listed, but stay reachable by id.
+  S.byId = new Map([...(d.earlier || []), ...d.sessions].map((s) => [s.id, s]));
   indexLive();
   applyTheme();
   render();
@@ -516,10 +517,14 @@ function detailOverview(s, d, l) {
   const cmds = d && d.commands ? Object.entries(d.commands).sort((a, b) => b[1] - a[1]) : [];
   const meta = (d && d.meta) || {};
   const links = [];
-  if (s.continuedFrom) links.push(`<button class="btn sm" data-act="open-session" data-sid="${s.continuedFrom}">${icon('left', 'sm')}Continued from ${esc((S.byId.get(s.continuedFrom) || {}).title || s.continuedFrom.slice(0, 8))}</button>`);
-  if (s.continuedIn) links.push(`<button class="btn sm" data-act="open-session" data-sid="${s.continuedIn}">Continued in ${esc((S.byId.get(s.continuedIn) || {}).title || s.continuedIn.slice(0, 8))}${icon('right', 'sm')}</button>`);
+  // Parts of one conversation share a title, so label them by when they ran.
+  const partSpan = (p) => (p ? `${fmtDateTime(p.firstTs)} – ${fmtDateTime(p.lastTs)}` : '');
+  if (s.continuedFrom) { const p = S.byId.get(s.continuedFrom); links.push(`<button class="btn sm" data-act="open-session" data-sid="${s.continuedFrom}" data-tip="${attr(partSpan(p))}">${icon('left', 'sm')}Earlier part${p ? ' · ' + esc(fmtDate(p.firstTs)) : ''}</button>`); }
+  if (s.continuedIn) { const p = S.byId.get(s.continuedIn); links.push(`<button class="btn sm" data-act="open-session" data-sid="${s.continuedIn}" data-tip="${attr(partSpan(p))}">${p && !p.supersededBy ? 'Latest part' : 'Next part'}${p ? ' · ' + esc(fmtDate(p.firstTs)) : ''}${icon('right', 'sm')}</button>`); }
 
+  const head = s.supersededBy && S.byId.get(s.supersededBy);
   return `
+    ${head ? `<div class="banner" style="margin:0">${icon('clock')}<span class="grow">An earlier part of a conversation that Claude Code continued in a newer session${s.copied ? ' (which includes everything here)' : ''}.</span><button class="btn sm" data-act="open-session" data-sid="${head.id}">Open latest${icon('right', 'sm')}</button></div>` : ''}
     ${l ? `<div class="banner" style="margin:0;background:var(--${l.status === 'waiting' ? 'wait' : l.status === 'busy' ? 'busy' : 'live'}-soft)">${icon('pulse')}<span class="grow">Running now in another terminal · <b>${esc(STATUS_LABEL[statusOf(s)])}</b>${l.waitingFor ? ' — ' + esc(l.waitingFor) : ''} · pid ${l.pid} · updated ${ago(l.updatedAt)}</span><button class="btn sm danger" data-act="stop" data-pid="${l.pid}">${icon('stop', 'sm')}Stop</button></div>` : ''}
     ${s.awaySummary || s.lastPrompt ? `<div>
       ${s.awaySummary ? `<div class="left-off" style="margin:0 0 8px;max-width:none"><b>WHERE IT LEFT OFF · ${esc(ago(s.awayTs).toUpperCase())}</b><p>${esc(s.awaySummary)}</p></div>` : ''}
