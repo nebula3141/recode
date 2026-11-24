@@ -1,7 +1,7 @@
 {
   "name": "recode",
   "productName": "ReCode",
-  "version": "1.0.0-rc.2",
+  "version": "1.0.0-rc.3",
   "description": "Browse every Claude Code session on your PC and resume any of them with one click.",
   "main": "electron/main.js",
   "private": true,
