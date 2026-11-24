@@ -10,7 +10,7 @@ A Windows desktop app for picking up Claude Code work. It lists every Claude Cod
 
 - **Home** — the session you most recently left (with Claude's "where it left off" recap and your last message), sessions running right now, recent sessions, quick-start folders, presets, and today's activity.
 - **Sessions** — every session, grouped by day. Search titles, prompts, edited files and your notes. Filter by running/resumable/archived, time range and project. The detail pane shows the recap, stats (active time, prompts, tool calls, tokens, model, lines changed, compactions), the full conversation, every prompt, and every file Claude edited.
-- **Running** — live Claude Code processes with their state (working, needs you, idle), refreshed every few seconds.
+- **Running** — live Claude Code processes with their state (working, needs you, idle), refreshed every few seconds. **Go to terminal** (also on any running session, or Enter / double-click) brings that session's exact Windows Terminal tab to the front.
 - **Timeline** — a year heatmap, plus a per-day chart of which sessions were active at what time, plus that day's prompts.
 - **Projects** — every folder you've used Claude Code in, with New session / Resume latest.
 - **Prompt history** — every prompt you've typed, including sessions whose transcripts Claude Code has since cleaned up.

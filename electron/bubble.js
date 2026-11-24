@@ -16,6 +16,7 @@ let expanded = false;
 let state = { items: [], autoHide: false };
 let hooks = {};           // { onPick(item), onOpenApp(), onMenu(), savePos({x,y}), getPos() }
 let anchor = { x: 0, y: 0 }; // top-left of the collapsed bubble in screen coordinates
+let screenHooked = false;
 
 function workAreaFor(pt) { return screen.getDisplayNearestPoint(pt).workArea; }
 
@@ -89,10 +90,13 @@ function create(opts) {
   win.webContents.once('did-finish-load', () => { send(); applyVisibility(); });
   win.on('blur', () => { if (expanded) setExpanded(false); });
   win.on('closed', () => { win = null; expanded = false; });
-  // Keep it on screen if displays change.
-  const refit = () => { anchor = clampPos(anchor); if (!expanded && win) win.setBounds({ ...anchor, width: SIZE, height: SIZE }); };
-  screen.on('display-metrics-changed', refit);
-  screen.on('display-removed', refit);
+  if (!screenHooked) {
+    // Keep it on screen if displays change (registered once; the window may be recreated).
+    screenHooked = true;
+    const refit = () => { if (!win || win.isDestroyed()) return; anchor = clampPos(anchor); if (!expanded) win.setBounds({ ...anchor, width: SIZE, height: SIZE }); };
+    screen.on('display-metrics-changed', refit);
+    screen.on('display-removed', refit);
+  }
   return win;
 }
 

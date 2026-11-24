@@ -13,7 +13,7 @@
   :root {
     --bg: #131210; --bg-2: #0f0e0d; --surface: #1a1917; --surface-2: #201e1c; --line: #2b2926; --line-2: #3a3733;
     --text: #ede9e3; --text-2: #b8b1a7; --muted: #938c82;
-    --accent: #e2774f; --accent-hover: #ec8862; --accent-ink: #1d0f09; --accent-soft: rgba(226, 119, 79, 0.13);
+    --accent: #e10600; --accent-hover: #f5190f; --accent-ink: #ffffff; --accent-text: #ff5247; --accent-soft: rgba(225, 6, 0, 0.16);
     --live: #4cc386; --wait: #e8b445; --busy: #8ba7ff;
     --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
     --display: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -49,11 +49,11 @@
   .eyebrow { display: inline-flex; gap: 8px; align-items: center; font: 500 13px var(--mono); color: var(--text-2); border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 12px; margin-bottom: 26px; }
   .eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--live); }
   h1 { font: 700 clamp(40px, 7vw, 76px)/1.03 var(--display); letter-spacing: -0.035em; margin: 0 auto 22px; max-width: 14ch; }
-  h1 em { font-style: normal; color: var(--accent); }
+  h1 em { font-style: normal; color: var(--accent-text); }
   .lede { font-size: clamp(17px, 2vw, 20px); color: var(--text-2); max-width: 640px; margin: 0 auto 34px; }
   .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   .term { font: 14px var(--mono); color: var(--text-2); margin-top: 26px; }
-  .term b { color: var(--accent); font-weight: 500; }
+  .term b { color: var(--accent-text); font-weight: 500; }
 
   /* window frame for screenshots */
   .shot { border-radius: 12px; overflow: hidden; border: 1px solid var(--line-2); background: var(--bg-2); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.4); }
@@ -61,7 +61,7 @@
 
   /* sections */
   section { padding: 96px 0 0; }
-  .kicker { font: 500 13px var(--mono); color: var(--accent); letter-spacing: 0.02em; margin-bottom: 10px; }
+  .kicker { font: 500 13px var(--mono); color: var(--accent-text); letter-spacing: 0.02em; margin-bottom: 10px; }
   h2 { font: 700 clamp(28px, 4vw, 42px)/1.12 var(--display); letter-spacing: -0.025em; margin: 0 0 16px; }
   h3 { font: 650 22px/1.25 var(--display); letter-spacing: -0.01em; margin: 0 0 8px; }
   p { margin: 0 0 14px; }
@@ -91,7 +91,7 @@
   @media (max-width: 880px) { .grid3 { grid-template-columns: 1fr; } }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 26px; }
   .card h3 { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-  .card h3 svg { flex: none; width: 22px; height: 22px; color: var(--accent); }
+  .card h3 svg { flex: none; width: 22px; height: 22px; color: var(--accent-text); }
   .card p { color: var(--text-2); font-size: 15px; margin: 0; }
   code { font: 0.9em var(--mono); background: var(--surface-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; }
 
@@ -108,7 +108,7 @@
   .steps { display: grid; gap: 10px; min-width: 0; }
   .step-label { font: 500 13px var(--mono); color: var(--text-2); margin-top: 8px; }
   .steps pre { white-space: pre; }
-  pre .p { color: var(--accent); user-select: none; }
+  pre .p { color: var(--accent-text); user-select: none; }
   .req { margin-top: 20px; display: grid; gap: 8px; color: var(--text-2); font-size: 15px; }
 
   footer { margin-top: 110px; border-top: 1px solid var(--line); padding: 34px 0 48px; color: var(--muted); font-size: 14px; }

@@ -165,21 +165,28 @@ app.on('second-instance', () => {
 
 // ---------- tray, bubble, notifications ----------
 
+// Settings changed from the tray: apply them and refresh the open window.
+function setFromTray(patch) {
+  applySettings(store.updateSettings(patch));
+  if (win && !win.isDestroyed()) win.webContents.send('update', { rev: 'settings-' + Date.now() });
+}
+
 function trayMenu() {
   const st = settings();
   return Menu.buildFromTemplate([
     { label: 'Open ReCode', click: () => showMain() },
     { type: 'separator' },
-    { label: 'Show attention bubble', type: 'checkbox', checked: st.bubble, click: (i) => applySettings(store.updateSettings({ bubble: i.checked })) },
-    { label: 'Hide bubble when nothing needs me', type: 'checkbox', checked: st.bubbleAutoHide, click: (i) => applySettings(store.updateSettings({ bubbleAutoHide: i.checked })) },
-    { label: 'Notify me when a session needs me', type: 'checkbox', checked: st.notifyAttention, click: (i) => applySettings(store.updateSettings({ notifyAttention: i.checked })) },
+    { label: 'Show attention bubble', type: 'checkbox', checked: st.bubble, click: (i) => setFromTray({ bubble: i.checked }) },
+    { label: 'Hide bubble when nothing needs me', type: 'checkbox', checked: st.bubbleAutoHide, click: (i) => setFromTray({ bubbleAutoHide: i.checked }) },
+    { label: 'Notify me when a session needs me', type: 'checkbox', checked: st.notifyAttention, click: (i) => setFromTray({ notifyAttention: i.checked }) },
     { type: 'separator' },
     { label: 'Quit ReCode', click: () => app.quit() },
   ]);
 }
 
 function ensureTray() {
-  const want = settings().runInBackground || settings().bubble;
+  // Also whenever ReCode starts hidden with Windows: the tray is then the only way in.
+  const want = settings().runInBackground || settings().bubble || settings().startWithWindows || START_HIDDEN;
   if (want && !tray) {
     const img = fs.existsSync(ICON) ? nativeImage.createFromPath(ICON) : nativeImage.createEmpty();
     tray = new Tray(img);
@@ -258,6 +265,7 @@ app.whenReady().then(async () => {
     if (d.attention) onAttention(d.attention);
   });
   applySettings(settings());
+  if (!SHOT) setTimeout(() => service.warmUpFocus(), 3000); // so the first bubble click is instant
   scheduleUpdateChecks();
 });
 

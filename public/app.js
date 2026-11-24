@@ -237,7 +237,7 @@ function sessionRow(s, { sel = false, snippet = null, showDate = false } = {}) {
   const l = liveOf(s.id);
   const preview = snippet || s.lastPrompt || s.firstPrompt || '';
   const resumeBtn = s.archived ? '' : l
-    ? `<button class="btn sm go" data-act="fork" data-sid="${s.id}" data-tip="Running elsewhere — start a fork">${icon('fork', 'sm')}Fork</button>`
+    ? `<button class="btn sm go primary" data-act="focus-term" data-sid="${s.id}" data-tip="Bring its terminal tab to the front (Enter)">${icon('terminal', 'sm')}Go to</button>`
     : `<button class="btn sm go primary" data-act="resume" data-sid="${s.id}">${icon('play', 'xs')}Resume</button>`;
   return `
   <div class="s-row ${sel ? 'sel' : ''} ${s.hidden || hiddenByPattern(s) ? 'hidden-s' : ''}" data-sid="${s.id}" tabindex="0" role="button" aria-label="${attr(s.title)}">
@@ -277,7 +277,7 @@ function liveCard(l) {
     <div class="sub"><span class="ellipsis" data-tip="${attr(l.cwd)}">${icon('folder', 'xs')} ${esc(baseName(l.cwd))}</span><span>started ${ago(l.startedAt)}</span><span class="mono">pid ${l.pid}</span></div>
     ${s && s.lastPrompt ? `<div class="muted ellipsis" style="font-size:12px">› ${esc(s.lastPrompt)}</div>` : ''}
     <div class="acts">
-      <button class="btn sm" data-act="focus-term" data-sid="${attr(l.sessionId)}" data-tip="Bring its terminal window to the front">${icon('terminal', 'sm')}Show</button>
+      <button class="btn sm primary" data-act="focus-term" data-sid="${attr(l.sessionId)}" data-tip="Bring its terminal tab to the front">${icon('terminal', 'sm')}Go to terminal</button>
       ${s ? `<button class="btn sm" data-act="open-session" data-sid="${s.id}">Details</button><button class="btn sm" data-act="fork" data-sid="${s.id}" data-tip="Open a copy of this conversation in a new terminal">${icon('fork', 'sm')}Fork</button>` : ''}
       <button class="btn sm ghost icon" data-act="open-folder" data-path="${attr(l.cwd)}" data-tip="Open folder">${icon('folder', 'sm')}</button>
       <button class="btn sm ghost icon danger" data-act="stop" data-pid="${l.pid}" data-tip="Stop this process" style="margin-left:auto">${icon('stop', 'sm')}</button>
@@ -616,7 +616,7 @@ function viewSessions() {
           <button class="btn icon ${f.pinned ? 'on' : ''}" data-act="f-pinned" data-tip="Pinned only">${icon('pin')}</button>
           <button class="btn icon ${f.showHidden ? 'on' : ''}" data-act="f-hidden" data-tip="Show hidden sessions and folders">${icon('eye-off')}</button>
         </div>
-        <div class="result-count"><span>${plural(list.length, 'session')}</span>${f.q || f.status !== 'all' || f.time !== 'any' || f.project || f.pinned ? '<button class="btn ghost sm" data-act="f-clear" style="height:18px;padding:0 4px">Clear filters</button>' : ''}<span style="margin-left:auto"><kbd>J</kbd> <kbd>K</kbd> move · <kbd>Enter</kbd> resume · <kbd>F</kbd> fork</span></div>
+        <div class="result-count"><span>${plural(list.length, 'session')}</span>${f.q || f.status !== 'all' || f.time !== 'any' || f.project || f.pinned ? '<button class="btn ghost sm" data-act="f-clear" style="height:18px;padding:0 4px">Clear filters</button>' : ''}<span style="margin-left:auto"><kbd>J</kbd> <kbd>K</kbd> move · <kbd>Enter</kbd> resume, or go to a running session's terminal · <kbd>F</kbd> fork</span></div>
       </div>
       <div class="scroll" data-scroll="slist" id="slist">${body}</div>
     </div>
@@ -645,7 +645,7 @@ function detailHtml(id) {
        <button class="btn icon ${s.pinned ? 'on' : ''}" data-act="pin" data-sid="${id}" data-tip="${s.pinned ? 'Unpin' : 'Pin'}">${icon('pin')}</button>
        <button class="btn icon" data-act="more" data-sid="${id}" aria-label="More actions">${icon('more')}</button>`
     : `<div class="split">
-         <button class="btn primary" data-act="${l ? 'resume-live' : 'resume'}" data-sid="${id}">${icon('play', 'sm')}Resume</button>
+         ${l ? `<button class="btn primary" data-act="focus-term" data-sid="${id}" data-tip="It's running: bring its terminal tab to the front">${icon('terminal', 'sm')}Go to terminal</button>` : `<button class="btn primary" data-act="resume" data-sid="${id}">${icon('play', 'sm')}Resume</button>`}
          <button class="btn primary" data-act="resume-menu" data-sid="${id}" aria-label="Resume options">${icon('down', 'sm')}</button>
        </div>
        <button class="btn" data-act="fork" data-sid="${id}" data-tip="New session ID, same conversation so far">${icon('fork')}Fork</button>
@@ -810,7 +810,7 @@ function viewLive() {
   const now = Date.now();
   const ended = baseSessions().filter((s) => !s.archived && !liveOf(s.id) && now - (s.lastTs || 0) < DAY).slice(0, 12);
   return `<div class="page">
-    <div class="page-h"><div><h1>Running now</h1><p>Claude Code processes running on this PC, refreshed every few seconds. Resuming one of these opens a second copy, so fork it instead.</p></div></div>
+    <div class="page-h"><div><h1>Running now</h1><p>Claude Code processes running on this PC, refreshed every few seconds. <b>Go to terminal</b> jumps to its tab; Fork starts a copy with a new session ID.</p></div></div>
     ${recoveryBanner({ list: true })}
     ${live.length ? `<div class="live-grid">${live.map(liveCard).join('')}</div>` : emptyBox('Nothing is running', '<div>Sessions you start from here or from a terminal show up automatically.</div>')}
     <section style="margin-top:28px"><h2 class="sec">Ended in the last 24 hours <span class="muted">${ended.length}</span></h2>
@@ -1115,6 +1115,18 @@ async function doLaunch(opts) {
   } catch (e) { toast(e.message, 'err'); return false; }
 }
 
+// Brings a running session's terminal tab to the front.
+let goBusy = null;
+async function goToSession(id) {
+  if (goBusy === id) return; // a double-click shouldn't send two requests
+  goBusy = id;
+  try {
+    const r = await api('/api/focus', { body: { sessionId: id } });
+    if (r.result === 'none') toast(liveOf(id) ? "Couldn't find its terminal window. It may be running somewhere ReCode can't switch to." : 'This session is no longer running', 'err');
+  } catch (e) { toast(e.message, 'err'); }
+  finally { goBusy = null; }
+}
+
 async function resumeSession(id, { fork = false, force = false } = {}) {
   const s = S.byId.get(id);
   if (!s || s.archived) return toast('This session has no transcript to resume', 'err');
@@ -1122,10 +1134,11 @@ async function resumeSession(id, { fork = false, force = false } = {}) {
   if (l && !fork && !force) {
     const v = await confirmDialog({
       title: 'This session is already running',
-      body: `It's open in another terminal (pid ${l.pid}, ${esc(STATUS_LABEL[statusOf(s)].toLowerCase())}). Resuming it again gives you two windows writing to the same conversation. Forking makes a copy with a new session ID instead.`,
-      ok: 'Fork instead', alt: 'Resume anyway',
+      body: `It's open in another terminal (pid ${l.pid}, ${esc(STATUS_LABEL[statusOf(s)].toLowerCase())}). Resuming it again gives you two windows writing to the same conversation. Go to that terminal instead, or fork to get a copy with a new session ID.`,
+      ok: 'Go to its terminal', alt: 'Fork instead',
     });
-    if (v === 'ok') fork = true; else if (v !== 'alt') return;
+    if (v === 'ok') return goToSession(id);
+    if (v === 'alt') fork = true; else return;
   }
   return doLaunch({ ...defaultsFromSettings(), mode: fork ? 'fork' : 'resume', sessionId: id, cwd: s.cwd, title: s.title });
 }
@@ -1249,8 +1262,8 @@ function openPalette() {
     const terms = q.split(/\s+/).filter(Boolean);
     const match = (txt) => terms.every((t) => txt.toLowerCase().includes(t));
     const sess = baseSessions({ includeHidden: true }).filter((s) => !q || match(`${s.title} ${s.cwd} ${s.lastPrompt} ${s.id} ${(s.tags || []).join(' ')}`)).slice(0, q ? 10 : 6)
-      .map((s) => ({ kind: 'Sessions', t: s.title, s: `${baseName(s.cwd)} · ${ago(s.lastTs)}${liveOf(s.id) ? ' · running' : ''}${s.archived ? ' · archived' : ''}`, icon: s.archived ? 'message' : 'play', k: s.archived ? 'details' : liveOf(s.id) ? 'fork' : 'resume',
-        run: () => (s.archived ? go('sessions', s.id) : resumeSession(s.id)), alt: () => go('sessions', s.id) }));
+      .map((s) => ({ kind: 'Sessions', t: s.title, s: `${baseName(s.cwd)} · ${ago(s.lastTs)}${liveOf(s.id) ? ' · running' : ''}${s.archived ? ' · archived' : ''}`, icon: s.archived ? 'message' : 'play', k: s.archived ? 'details' : liveOf(s.id) ? 'go to terminal' : 'resume',
+        run: () => (s.archived ? go('sessions', s.id) : liveOf(s.id) ? goToSession(s.id) : resumeSession(s.id)), alt: () => go('sessions', s.id) }));
     const projs = S.data.projects.filter((p) => p.exists && (!q || match(p.path))).slice(0, q ? 6 : 3)
       .map((p) => ({ kind: 'Projects', t: p.name, s: p.path, icon: 'folder', k: 'new session', run: () => launchDialog({ cwd: p.path }), alt: () => { S.f.project = p.key; go('sessions'); } }));
     const acts = actions.filter((a) => !q || match(a.t + ' ' + a.s)).map((a) => ({ ...a, kind: 'Actions', k: '' }));
@@ -1304,6 +1317,7 @@ const ACTIONS = {
   'resume-menu': (el) => {
     const id = el.dataset.sid; const s = S.byId.get(id);
     openMenu(el, [
+      ...(liveOf(id) ? [{ label: 'Go to its terminal', icon: 'terminal', run: () => goToSession(id) }, { label: 'Resume a second copy', icon: 'play', run: () => resumeSession(id, { force: true }) }, '-'] : []),
       { label: 'Resume with options…', icon: 'sliders', run: () => launchDialog({ sessionId: id }) },
       { label: 'Fork with options…', icon: 'fork', run: () => launchDialog({ sessionId: id, mode: 'fork' }) },
       { label: 'Resume in a new window', icon: 'terminal', run: () => doLaunch({ ...defaultsFromSettings(), mode: 'resume', sessionId: id, cwd: s.cwd, title: s.title, terminal: 'wt-window' }) },
@@ -1382,12 +1396,7 @@ const ACTIONS = {
   'recover-review': () => recoveryReview(),
   'recover-dismiss': () => dismissRecovery(recoveryItems()),
   'bubble-reset': () => saveSetting('bubblePos', null),
-  'focus-term': async (el) => {
-    try {
-      const r = await api('/api/focus', { body: { sessionId: el.dataset.sid } });
-      if (r.result === 'none') toast("Couldn't find its terminal window", 'err');
-    } catch (e) { toast(e.message, 'err'); }
-  },
+  'focus-term': (el) => goToSession(el.dataset.sid),
 };
 
 async function stopPid(pid) {
@@ -1453,7 +1462,7 @@ document.addEventListener('dblclick', (e) => {
   rowClick = { id: null, at: 0 };
   if (!id) return;
   const s = S.byId.get(id);
-  if (s && !s.archived) { window.getSelection().removeAllRanges(); resumeSession(s.id); }
+  if (s && !s.archived) { window.getSelection().removeAllRanges(); if (liveOf(s.id)) goToSession(s.id); else resumeSession(s.id); }
 });
 
 document.addEventListener('change', (e) => {
@@ -1523,7 +1532,7 @@ document.addEventListener('keydown', (e) => {
     const cur = list[i];
     if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); const n = list[Math.min(list.length - 1, i + 1)]; if (n) selectAndReveal(n.id); }
     else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); const n = list[Math.max(0, i - 1)]; if (n) selectAndReveal(n.id); }
-    else if (cur && e.key === 'Enter') { e.preventDefault(); if (!cur.archived) resumeSession(cur.id, { fork: e.shiftKey }); }
+    else if (cur && e.key === 'Enter') { e.preventDefault(); if (liveOf(cur.id) && !e.shiftKey) goToSession(cur.id); else if (!cur.archived) resumeSession(cur.id, { fork: e.shiftKey }); }
     else if (cur && e.key === 'f') { if (!cur.archived) resumeSession(cur.id, { fork: true }); }
     else if (cur && e.key === 'p') setMeta(cur.id, { pinned: !cur.pinned });
     else if (cur && e.key === 'o') osOpen('folder', cur.cwd);
