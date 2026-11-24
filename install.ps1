@@ -11,7 +11,7 @@
     irm https://raw.githubusercontent.com/nebula3141/recode/main/install.ps1 | iex
 
   Or download this file and run it:
-    powershell -ExecutionPolicy Bypass -File install.ps1 [-Version 1.0.0-rc.1] [-Prerelease] [-NoDesktopShortcut]
+    powershell -ExecutionPolicy Bypass -File install.ps1 [-Version 1.0.0-rc.1] [-Prerelease] [-NoDesktopShortcut] [-Update]
 
 .PARAMETER Version
   A specific release, e.g. 1.0.0 or 1.0.0-rc.1. Defaults to the newest stable release,
@@ -20,15 +20,24 @@
   Install the newest release even if it is a release candidate.
 .PARAMETER NoDesktopShortcut
   Only add the Start menu shortcut.
+.PARAMETER Update
+  Used by ReCode's own updater: keep the Desktop shortcut only if it already exists,
+  log to %TEMP%\recode-update.log, and start ReCode again when done.
 #>
 [CmdletBinding()]
 param(
   [string]$Version,
   [switch]$Prerelease,
-  [switch]$NoDesktopShortcut
+  [switch]$NoDesktopShortcut,
+  [switch]$Update
 )
 
 $ErrorActionPreference = 'Stop'
+if ($Update) {
+  try { Start-Transcript -Path (Join-Path ([IO.Path]::GetTempPath()) 'recode-update.log') -Force | Out-Null } catch { }
+  # Don't recreate a Desktop shortcut the user deleted.
+  if (-not (Test-Path -LiteralPath (Join-Path ([Environment]::GetFolderPath('Desktop')) 'ReCode.lnk'))) { $NoDesktopShortcut = [switch]$true }
+}
 $ProgressPreference = 'SilentlyContinue'   # Invoke-WebRequest is far faster without the progress bar
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
@@ -149,3 +158,8 @@ Write-Host ""
 Write-Host "$AppName $ver is installed. Open it from the Start menu." -ForegroundColor Green
 Write-Host "  Uninstall: Settings > Apps > $AppName, or run $uninstaller"
 Write-Host ""
+
+if ($Update) {
+  Start-Process -FilePath $exe -WorkingDirectory $InstallDir
+  try { Stop-Transcript | Out-Null } catch { }
+}

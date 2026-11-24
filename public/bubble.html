@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+<title>ReCode bubble</title>
+<style>
+  :root {
+    --surface: #1c1a17; --surface-2: #24221f; --line: #3a3733; --text: #ede9e3; --text-2: #b8b1a7; --muted: #938c82;
+    --accent: #e2774f; --wait: #e8b445; --done: #4cc386;
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --surface: #ffffff; --surface-2: #f3f1ed; --line: #d9d4cc; --text: #1f1d1a; --text-2: #4d4842; --muted: #6b655c; --wait: #b7810f; --done: #1f8a55; }
+  }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font: 13px/1.35 var(--font); color: var(--text); user-select: none; }
+
+  /* collapsed bubble */
+  .bubble {
+    position: absolute; left: 10px; top: 10px; width: 44px; height: 44px; border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--line); box-sizing: border-box;
+    display: grid; place-items: center; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+    transition: opacity .2s, transform .15s, border-color .2s;
+  }
+  .bubble svg { width: 20px; height: 20px; }
+  .bubble.idle { opacity: .5; }
+  .bubble.idle:hover { opacity: 1; }
+  .bubble:hover { transform: scale(1.06); }
+  .bubble:active { transform: scale(.96); }
+  .bubble.finished { border-color: var(--done); }
+  .bubble.waiting { border-color: var(--wait); }
+  .bubble.waiting::after {
+    content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid var(--wait);
+    animation: ping 2.4s ease-out infinite; pointer-events: none;
+  }
+  @keyframes ping { 0% { transform: scale(1); opacity: .7; } 70%, 100% { transform: scale(1.45); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .bubble.waiting::after { animation: none; opacity: 0; } .bubble { transition: none; } }
+  .badge {
+    position: absolute; right: -5px; top: -5px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+    border-radius: 9px; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; color: #1d1607;
+    background: var(--wait); border: 2px solid var(--surface);
+  }
+  .finished .badge { background: var(--done); color: #06180f; }
+  .idle .badge { display: none; }
+
+  /* expanded list */
+  .panel {
+    position: absolute; inset: 0; margin: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .45); display: flex; flex-direction: column; overflow: hidden;
+  }
+  .head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 8px; }
+  .head b { font-size: 13px; }
+  .head .sp { flex: 1; }
+  .link { background: none; border: 0; color: var(--text-2); font: inherit; font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+  .link:hover, .link:focus-visible { color: var(--text); background: var(--surface-2); outline: none; }
+  .list { overflow-y: auto; padding: 0 6px 6px; }
+  .row { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; background: none; border: 0; color: inherit; font: inherit;
+    padding: 8px; border-radius: 8px; cursor: pointer; min-height: 48px; box-sizing: border-box; }
+  .row:hover, .row:focus-visible { background: var(--surface-2); outline: none; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: none; }
+  .dot.waiting { background: var(--wait); }
+  .dot.finished { background: var(--done); }
+  .row .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .s { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row > div { min-width: 0; flex: 1; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="bubble idle" id="bubble" role="button" tabindex="-1" aria-label="ReCode">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M16 22 28 32 16 42" fill="none" stroke="#e2774f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M33 42h15" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg>
+    <span class="badge" id="badge"></span>
+  </div>
+  <div class="panel" id="panel" hidden>
+    <div class="head"><b id="head-t"></b><span class="sp"></span><button class="link" id="open-app">Open ReCode</button></div>
+    <div class="list" id="list" role="list"></div>
+  </div>
+  <script src="bubble.js"></script>
+</body>
+</html>

@@ -222,6 +222,8 @@ function renderTop() {
   const live = S.data.live;
   const by = (st) => live.filter((l) => l.status === st).length;
   const parts = [];
+  const up = S.data.meta.update;
+  if (up && up.available) parts.push(`<button class="pill update" data-act="update-open" style="border:0;cursor:pointer" data-tip="A new ReCode release is available">${icon('down', 'xs')}Update to ${esc(up.latest.version)}</button>`);
   if (by('waiting')) parts.push(`<button class="pill waiting" data-act="nav" data-view="live" style="border:0;cursor:pointer"><span class="dot waiting"></span>${by('waiting')} need${by('waiting') === 1 ? 's' : ''} you</button>`);
   if (by('busy')) parts.push(`<button class="pill busy" data-act="nav" data-view="live" style="border:0;cursor:pointer"><span class="dot busy"></span>${by('busy')} working</button>`);
   if (by('idle')) parts.push(`<button class="pill idle" data-act="nav" data-view="live" style="border:0;cursor:pointer"><span class="dot idle"></span>${by('idle')} idle</button>`);
@@ -275,6 +277,7 @@ function liveCard(l) {
     <div class="sub"><span class="ellipsis" data-tip="${attr(l.cwd)}">${icon('folder', 'xs')} ${esc(baseName(l.cwd))}</span><span>started ${ago(l.startedAt)}</span><span class="mono">pid ${l.pid}</span></div>
     ${s && s.lastPrompt ? `<div class="muted ellipsis" style="font-size:12px">› ${esc(s.lastPrompt)}</div>` : ''}
     <div class="acts">
+      <button class="btn sm" data-act="focus-term" data-sid="${attr(l.sessionId)}" data-tip="Bring its terminal window to the front">${icon('terminal', 'sm')}Show</button>
       ${s ? `<button class="btn sm" data-act="open-session" data-sid="${s.id}">Details</button><button class="btn sm" data-act="fork" data-sid="${s.id}" data-tip="Open a copy of this conversation in a new terminal">${icon('fork', 'sm')}Fork</button>` : ''}
       <button class="btn sm ghost icon" data-act="open-folder" data-path="${attr(l.cwd)}" data-tip="Open folder">${icon('folder', 'sm')}</button>
       <button class="btn sm ghost icon danger" data-act="stop" data-pid="${l.pid}" data-tip="Stop this process" style="margin-left:auto">${icon('stop', 'sm')}</button>
@@ -317,6 +320,7 @@ function viewHome() {
     <div class="page-h"><div><h1>${greet}</h1><p>${esc(sub)}</p></div></div>
     <div class="grid-home">
       <div class="stack" style="gap:24px">
+        ${recoveryBanner()}
         ${hero ? heroCard(hero) : emptyBox('No sessions yet', '<div>Start one with <b style="display:inline">New session</b>.</div>')}
         ${d.live.length ? `<section><h2 class="sec">Running now <span class="muted">${d.live.length}</span><button class="link" data-act="nav" data-view="live">View all →</button></h2><div class="live-grid">${d.live.slice(0, 4).map(liveCard).join('')}</div></section>` : ''}
         <section>
@@ -327,6 +331,197 @@ function viewHome() {
       <aside class="rail">${railStart()}${railPresets()}${railToday(todays, today0, now)}</aside>
     </div>
   </div>`;
+}
+
+function recoveryItems() { return (S.data.recovery || []).filter((r) => S.byId.has(r.sessionId)); }
+
+function recoveryBanner({ list = false } = {}) {
+  const items = recoveryItems();
+  if (!items.length) return '';
+  const when = items[0].at;
+  const what = items.length === 1 ? `<b>${esc(items[0].title)}</b> was interrupted` : `${items.length} sessions were interrupted`;
+  const rows = list || items.length <= 3
+    ? `<div class="rec-list">${items.slice(0, list ? 20 : 3).map((r) => `<div class="rec-row"><span class="dot ${r.status === 'busy' ? 'busy' : r.status === 'waiting' ? 'waiting' : 'idle'}"></span><span class="ellipsis grow">${esc(r.title)}</span><span class="muted ellipsis" style="max-width:30%">${esc(baseName(r.cwd))}</span><span class="muted nowrap tnum">${esc(ago(r.at))}</span><button class="btn sm" data-act="recover-one" data-sid="${attr(r.sessionId)}">${icon('play', 'sm')}Resume</button></div>`).join('')}</div>`
+    : '';
+  return `<section class="card recovery" role="region" aria-label="Interrupted sessions">
+    <div class="row" style="align-items:flex-start;gap:12px">
+      <span class="rec-ic">${icon('refresh')}</span>
+      <div class="grow" style="min-width:0">
+        <div class="rec-t">${what}</div>
+        <div class="muted" style="font-size:13px">Claude Code, the terminal or the PC stopped ${esc(ago(when))} while ${items.length === 1 ? 'it was' : 'they were'} open. Resume to pick up where you left off.</div>
+      </div>
+    </div>
+    ${rows}
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      ${items.length > 1 ? `<button class="btn primary sm" data-act="recover-all">${icon('play', 'sm')}Resume all ${items.length}</button><button class="btn sm" data-act="recover-review">Choose…</button>` : `<button class="btn primary sm" data-act="recover-one" data-sid="${attr(items[0].sessionId)}">${icon('play', 'sm')}Resume</button>`}
+      <button class="btn ghost sm" data-act="recover-dismiss">Dismiss</button>
+    </div>
+  </section>`;
+}
+
+async function dismissRecovery(items) {
+  try {
+    const r = await api('/api/recovery/dismiss', { body: { keys: items.flatMap((i) => i.keys) } });
+    S.data.recovery = r.items; render();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function resumeRecovered(items) {
+  // Stagger launches so terminals don't fight over focus and Claude Code starts cleanly.
+  let n = 0;
+  for (const r of items) {
+    const sess = S.byId.get(r.sessionId);
+    if (!sess || sess.archived) continue;
+    if (n) await new Promise((res) => setTimeout(res, 700));
+    const ok = await doLaunch({ ...defaultsFromSettings(), mode: 'resume', sessionId: sess.id, cwd: sess.cwd, title: sess.title });
+    if (ok !== false) n++;
+  }
+  await dismissRecovery(items);
+  if (n > 1) toast(`Resumed ${n} sessions`);
+}
+
+function recoveryReview() {
+  const items = recoveryItems();
+  const m = openModal(`
+    <div class="mh"><div><h3>Resume interrupted sessions</h3><p>Pick the ones to reopen. Each opens in its own terminal.</p></div><button class="btn ghost icon x" data-close aria-label="Close">${icon('x')}</button></div>
+    <div class="mb"><div class="list-plain">${items.map((r, i) => `<label class="check rec-pick"><input type="checkbox" data-i="${i}" checked><span class="grow ellipsis"><b>${esc(r.title)}</b><span class="muted"> · ${esc(baseName(r.cwd))}</span></span><span class="muted nowrap tnum">${esc(ago(r.at))}</span></label>`).join('')}</div></div>
+    <div class="mf"><button class="btn ghost" id="rr-dismiss">Dismiss all</button><span class="sp"></span><button class="btn ghost" data-close>Cancel</button><button class="btn primary" id="rr-go">${icon('play', 'sm')}Resume selected</button></div>`);
+  const picked = () => [...m.el.querySelectorAll('input[data-i]')].filter((x) => x.checked).map((x) => items[Number(x.dataset.i)]);
+  m.el.querySelector('#rr-go').addEventListener('click', () => { const sel = picked(); m.close(); if (sel.length) resumeRecovered(sel); });
+  m.el.querySelector('#rr-dismiss').addEventListener('click', () => { m.close(); dismissRecovery(items); });
+  m.el.addEventListener('change', () => { const k = picked().length; const b = m.el.querySelector('#rr-go'); b.disabled = !k; b.lastChild.textContent = k ? `Resume ${k}` : 'Resume selected'; });
+}
+
+// ---------- updates ----------
+let updatePoll = null;
+function updateDialog() {
+  const render1 = (u) => {
+    const l = u.latest;
+    const busy = u.phase === 'downloading' || u.phase === 'verifying' || u.phase === 'starting';
+    const pct = u.total ? Math.round((u.received / u.total) * 100) : null;
+    const how = u.kind === 'installer' ? 'ReCode downloads the installer, checks its SHA-256, closes and updates itself, then reopens.'
+      : u.kind === 'script' ? 'ReCode downloads the new version, checks its SHA-256, closes, updates itself and reopens.'
+      : 'This copy of ReCode can\'t update itself (portable or source build). Download the new version from the release page.';
+    return `
+      <div class="mh"><div><h3>${l ? `ReCode ${esc(l.version)}` : 'Updates'}</h3><p>You have ${esc(u.current)}${l && l.publishedAt ? ` · released ${esc(ago(l.publishedAt))}` : ''}${l && l.prerelease ? ' · release candidate' : ''}</p></div><button class="btn ghost icon x" data-close aria-label="Close">${icon('x')}</button></div>
+      <div class="mb">
+        ${l && l.notes ? `<div class="md update-notes">${md(l.notes)}</div>` : '<div class="muted">No release notes.</div>'}
+        <div class="dim" style="font-size:13px">${esc(how)}</div>
+        ${busy ? `<div class="progress"><div style="width:${pct == null ? 30 : pct}%"></div></div><div class="muted" style="font-size:12px">${u.phase === 'downloading' ? `Downloading${pct != null ? ` · ${pct}%` : '…'}` : u.phase === 'verifying' ? 'Checking the download…' : 'Starting the update…'}</div>` : ''}
+        ${u.phaseError ? `<div class="err-box">${esc(u.phaseError)}</div>` : ''}
+      </div>
+      <div class="mf">
+        <button class="btn ghost" data-act="open-url" data-url="${attr((l && l.url) || u.releasesPage)}">${icon('external', 'sm')}Release page</button>
+        <span class="sp"></span>
+        <button class="btn ghost" data-close>Later</button>
+        ${u.available ? `<button class="btn primary" id="up-go" ${busy ? 'disabled' : ''}>${icon('down', 'sm')}${u.kind === 'installer' || u.kind === 'script' ? 'Update now' : 'Download'}</button>` : ''}
+      </div>`;
+  };
+  let u = S.data.meta.update;
+  const m = openModal(render1(u), { onClose: () => { clearInterval(updatePoll); updatePoll = null; } });
+  const box = m.el.querySelector('.modal');
+  const wire = (first) => {
+    if (!first) box.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', m.close));
+    const go = box.querySelector('#up-go');
+    if (go) go.addEventListener('click', async () => {
+      go.disabled = true;
+      try {
+        const r = await api('/api/update/install', { body: {} });
+        if (r.action === 'open') { m.close(); return; }
+        toast('Updating ReCode, it will reopen in a moment');
+      } catch (e) { toast(e.message, 'err'); go.disabled = false; }
+    });
+  };
+  wire(true);
+  clearInterval(updatePoll);
+  updatePoll = setInterval(async () => {
+    try {
+      const n = await api('/api/update');
+      if (JSON.stringify([n.phase, n.received, n.phaseError, n.available]) === JSON.stringify([u.phase, u.received, u.phaseError, u.available])) return;
+      u = n; S.data.meta.update = n; box.innerHTML = render1(n); wire();
+    } catch { /* app is closing for the update */ }
+  }, 500);
+}
+
+async function checkForUpdates() {
+  try {
+    const u = await api('/api/update/check', { body: {} });
+    S.data.meta.update = u; render();
+    if (u.error) toast(u.error, 'err');
+    else if (u.available) updateDialog();
+    else toast(`You're on the latest version (${u.current})`);
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+// ---------- folder autocomplete ----------
+// Suggests known projects and real subfolders as you type a path. Tab completes a folder and
+// shows what's inside it; Enter picks the highlighted entry; Esc closes the list only.
+function attachFolderComplete(input, onPick) {
+  const wrap = input.closest('.ac-wrap');
+  const list = wrap.querySelector('.ac');
+  const hint = input.closest('.field') && input.closest('.field').querySelector('.ac-hint');
+  let items = []; let sel = -1; let seq = 0; let timer = null; let open = false;
+  const SEP = String.fromCharCode(92);
+  const show = (on) => { open = on && items.length > 0; list.hidden = !open; input.setAttribute('aria-expanded', open ? 'true' : 'false'); };
+  const paint = () => {
+    list.innerHTML = items.map((it, i) => `<div class="ac-item ${i === sel ? 'on' : ''}" role="option" id="ac-${i}" aria-selected="${i === sel}" data-i="${i}">
+      <span class="ac-ic">${icon(it.kind === 'project' ? 'code' : it.kind === 'drive' ? 'desktop' : 'folder', 'sm')}</span>
+      <span class="ac-name ellipsis">${esc(it.name)}</span>
+      <span class="ac-path ellipsis muted">${esc(it.path)}</span>
+      ${it.sessions ? `<span class="ac-meta muted nowrap">${plural(it.sessions, 'session')}</span>` : it.git ? '<span class="ac-meta muted">git</span>' : ''}
+    </div>`).join('');
+    if (sel >= 0) { input.setAttribute('aria-activedescendant', 'ac-' + sel); const el = list.children[sel]; if (el) el.scrollIntoView({ block: 'nearest' }); } else input.removeAttribute('aria-activedescendant');
+  };
+  const setHint = (r) => {
+    if (!hint) return;
+    const v = input.value.trim();
+    if (!v) { hint.textContent = 'Type a path or a project name. Tab completes a folder.'; hint.className = 'hint ac-hint'; return; }
+    if (r && r.exists) { const p = S.data.projects.find((x) => x.path.toLowerCase() === (r.resolved || '').toLowerCase()); hint.textContent = p && p.sessions ? `Folder found · ${plural(p.sessions, 'earlier session')} here` : 'Folder found'; hint.className = 'hint ac-hint ok'; }
+    else if (r && /[\\/:]/.test(v)) { hint.textContent = "This folder doesn't exist yet. Claude Code needs an existing folder."; hint.className = 'hint ac-hint warn'; }
+    else { hint.textContent = 'Pick a match, or type a full path.'; hint.className = 'hint ac-hint'; }
+  };
+  const fetchNow = async () => {
+    const my = ++seq;
+    try {
+      const r = await api('/api/complete-dir?q=' + encodeURIComponent(input.value));
+      if (my !== seq) return;
+      items = r.items || []; sel = items.length && document.activeElement === input && input.value.trim() && !r.exists ? 0 : -1;
+      paint(); show(document.activeElement === input); setHint(r);
+    } catch { /* ignore */ }
+  };
+  const fetchSoon = () => { clearTimeout(timer); timer = setTimeout(fetchNow, 90); };
+  const accept = (it, { descend = false } = {}) => {
+    if (!it) return;
+    input.value = descend ? it.path.replace(/[\\/]+$/, '') + SEP : it.path;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    if (onPick) onPick(it);
+    if (descend) { input.focus(); fetchNow(); } else { show(false); fetchNow().then(() => show(false)); }
+    const n = input.value.length; input.setSelectionRange(n, n);
+  };
+  input.setAttribute('role', 'combobox'); input.setAttribute('aria-autocomplete', 'list'); input.setAttribute('aria-controls', list.id); input.setAttribute('aria-expanded', 'false');
+  input.autocomplete = 'off'; input.spellcheck = false;
+  input.addEventListener('input', fetchSoon);
+  input.addEventListener('focus', fetchNow);
+  input.addEventListener('blur', () => setTimeout(() => show(false), 120));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!open) { show(true); if (!open) return; }
+      e.preventDefault();
+      const d = e.key === 'ArrowDown' ? 1 : -1;
+      sel = (sel + d + items.length) % items.length; paint();
+    } else if (e.key === 'Tab' && open && items.length && !e.shiftKey) {
+      e.preventDefault(); accept(items[Math.max(sel, 0)], { descend: true });
+    } else if (e.key === 'Enter' && open && sel >= 0) {
+      e.preventDefault(); e.stopPropagation(); accept(items[sel]);
+    } else if (e.key === 'Escape' && open) {
+      e.preventDefault(); e.stopPropagation(); show(false);
+    }
+  });
+  list.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the input
+  list.addEventListener('click', (e) => { const r = e.target.closest('.ac-item'); if (r) accept(items[Number(r.dataset.i)]); });
+  list.addEventListener('mousemove', (e) => { const r = e.target.closest('.ac-item'); if (r && Number(r.dataset.i) !== sel) { sel = Number(r.dataset.i); paint(); } });
+  setHint(null);
+  return { refresh: fetchNow };
 }
 
 function heroCard(s) {
@@ -616,6 +811,7 @@ function viewLive() {
   const ended = baseSessions().filter((s) => !s.archived && !liveOf(s.id) && now - (s.lastTs || 0) < DAY).slice(0, 12);
   return `<div class="page">
     <div class="page-h"><div><h1>Running now</h1><p>Claude Code processes running on this PC, refreshed every few seconds. Resuming one of these opens a second copy, so fork it instead.</p></div></div>
+    ${recoveryBanner({ list: true })}
     ${live.length ? `<div class="live-grid">${live.map(liveCard).join('')}</div>` : emptyBox('Nothing is running', '<div>Sessions you start from here or from a terminal show up automatically.</div>')}
     <section style="margin-top:28px"><h2 class="sec">Ended in the last 24 hours <span class="muted">${ended.length}</span></h2>
       <div class="card recent-list">${ended.length ? ended.map((s) => sessionRow(s)).join('') : '<div class="muted" style="padding:14px">None.</div>'}</div></section>
@@ -869,6 +1065,26 @@ function viewSettings() {
         </div>
         ${S.data.launches.length ? `<div><div class="lab" style="font-size:12px;color:var(--text-2);margin-bottom:6px">Recent launches</div><div class="list-plain">${S.data.launches.slice(0, 10).map((l) => `<div class="li" style="font-size:12px"><span class="tnum muted nowrap">${esc(fmtDateTime(l.at))}</span><span class="chip">${esc(l.mode)}</span><span class="ellipsis">${esc(l.title || (l.sessionId && (S.byId.get(l.sessionId) || {}).title) || baseName(l.cwd))}</span><span class="muted" style="margin-left:auto">${esc(l.how)}</span></div>`).join('')}</div></div>` : ''}
       </div>
+      <div class="card"><h3>Attention bubble &amp; background</h3>
+        <div class="dim" style="font-size:13px">A small floating bubble shows when a Claude Code session is waiting on you. Click it to jump to that terminal tab. Drag it anywhere; it snaps to the screen edge.</div>
+        <label class="check"><input type="checkbox" data-setting="bubble" ${st.bubble ? 'checked' : ''}>Show the floating bubble</label>
+        <label class="check"><input type="checkbox" data-setting="bubbleFinished" ${st.bubbleFinished ? 'checked' : ''}>Also flag sessions that finished their work (green)</label>
+        <label class="check"><input type="checkbox" data-setting="bubbleAutoHide" ${st.bubbleAutoHide ? 'checked' : ''}>Hide the bubble when nothing needs me</label>
+        <label class="check"><input type="checkbox" data-setting="notifyAttention" ${st.notifyAttention ? 'checked' : ''}>Windows notification when a session needs me</label>
+        <label class="check"><input type="checkbox" data-setting="runInBackground" ${st.runInBackground ? 'checked' : ''}>Keep running in the tray when the window is closed</label>
+        <label class="check"><input type="checkbox" data-setting="startWithWindows" ${st.startWithWindows ? 'checked' : ''} ${m.update && m.update.kind === 'dev' ? 'disabled' : ''}>Start with Windows (tray and bubble only)</label>
+        ${st.bubblePos ? '<div><button class="btn sm ghost" data-act="bubble-reset">Move bubble back to its default spot</button></div>' : ''}
+      </div>
+      <div class="card"><h3>Updates</h3>
+        ${(() => { const u = m.update || {}; const kinds = { installer: 'installed with the setup program', script: 'installed with install.ps1', portable: 'portable copy', dev: 'running from source' };
+          return `<div class="dim">ReCode ${esc(u.current || '')} · ${esc(kinds[u.kind] || '')}${u.checkedAt ? ` · checked ${esc(ago(u.checkedAt))}` : ''}</div>
+          ${u.available ? `<div class="row" style="gap:8px"><span class="pill update">${icon('down', 'xs')}${esc(u.latest.version)} is available</span><button class="btn sm primary" data-act="update-open">See what's new</button></div>` : u.error ? `<div class="err-box">${esc(u.error)}</div>` : u.checkedAt ? '<div class="muted" style="font-size:13px">You have the latest version.</div>' : ''}`; })()}
+        <div class="fields-2">
+          <div class="field"><label for="s-updateChannel">Release channel</label>${sel('s-updateChannel', [['auto', 'Automatic (match this version)'], ['stable', 'Stable releases only'], ['rc', 'Include release candidates']], st.updateChannel)}</div>
+        </div>
+        <label class="check"><input type="checkbox" data-setting="autoUpdateCheck" ${st.autoUpdateCheck ? 'checked' : ''}>Check GitHub for new versions automatically</label>
+        <div class="row" style="gap:8px"><button class="btn" data-act="update-check">${icon('refresh')}Check now</button><button class="btn ghost" data-act="open-url" data-url="${attr((m.update && m.update.releasesPage) || 'https://github.com/nebula3141/recode/releases')}">${icon('external', 'sm')}All releases</button></div>
+      </div>
       <div class="card"><h3>Keyboard</h3>
         <div class="dim" style="line-height:2"><kbd>Ctrl K</kbd> search everything · <kbd>N</kbd> new session · <kbd>/</kbd> focus search · <kbd>J</kbd>/<kbd>K</kbd> move in lists · <kbd>Enter</kbd> resume · <kbd>F</kbd> fork · <kbd>P</kbd> pin · <kbd>O</kbd> open folder · <kbd>Esc</kbd> close</div>
       </div>
@@ -918,7 +1134,6 @@ function launchDialog(init = {}) {
   const st = settings();
   const s = init.sessionId ? S.byId.get(init.sessionId) : null;
   const o = { ...defaultsFromSettings(), mode: s ? 'resume' : 'new', cwd: s ? s.cwd : '', name: '', prompt: '', addDirs: [], extraArgs: '', chrome: false, ide: false, ...init };
-  const projects = S.data.projects.filter((p) => p.exists).slice(0, 60);
   const modes = s ? [['resume', 'Resume'], ['fork', 'Fork (new ID)']] : [['new', 'New session'], ['continue', 'Continue latest in folder']];
   const presetId = init.presetId || null;
 
@@ -926,8 +1141,8 @@ function launchDialog(init = {}) {
     <div class="mh"><div><h3>${s ? 'Resume with options' : presetId ? 'Edit preset' : 'New session'}</h3><p>${s ? esc(s.title) : 'Start Claude Code in any folder.'}</p></div><button class="btn ghost icon x" data-close aria-label="Close">${icon('x')}</button></div>
     <div class="mb">
       <div class="seg" id="l-mode">${modes.map(([v, l]) => `<button type="button" data-v="${v}" class="${o.mode === v ? 'on' : ''}">${l}</button>`).join('')}</div>
-      ${s ? '' : `<div class="field"><label for="l-cwd">Folder</label><div class="row"><input id="l-cwd" class="input grow" list="l-projects" placeholder="E:\\Proj\\my-app" value="${attr(o.cwd)}" autofocus><button class="btn" type="button" id="l-browse">${icon('folder')}Browse…</button></div>
-        <datalist id="l-projects">${projects.map((p) => `<option value="${attr(p.path)}">${esc(p.name)}</option>`).join('')}</datalist></div>`}
+      ${s ? '' : `<div class="field"><label for="l-cwd">Folder</label><div class="row"><div class="ac-wrap grow"><input id="l-cwd" class="input" placeholder="E:\\Proj\\my-app or a project name" value="${attr(o.cwd)}" autofocus><div class="ac" id="l-ac" role="listbox" hidden></div></div><button class="btn" type="button" id="l-browse">${icon('folder')}Browse…</button></div>
+        <span class="hint ac-hint"></span></div>`}
       <div class="fields-2">
         <div class="field"><label for="l-name">Session name</label><input id="l-name" class="input" placeholder="${s ? 'Keep current name' : 'Optional'}" value="${attr(o.name)}"></div>
         <div class="field"><label for="l-model">Model</label><input id="l-model" class="input" list="l-models" placeholder="Claude Code default" value="${attr(o.model)}"><datalist id="l-models">${MODELS.filter(Boolean).map((x) => `<option value="${x}">`).join('')}</datalist></div>
@@ -985,9 +1200,10 @@ function launchDialog(init = {}) {
     preview();
   });
   $('l-copy').addEventListener('click', () => copyText($('l-cmd').textContent, 'Command copied'));
+  const ac = $('l-cwd') ? attachFolderComplete($('l-cwd'), () => preview()) : null;
   if ($('l-browse')) $('l-browse').addEventListener('click', async () => {
     $('l-browse').disabled = true;
-    try { const r = await api('/api/pick-folder', { body: { initial: $('l-cwd').value } }); if (r.path) { $('l-cwd').value = r.path; preview(); } }
+    try { const r = await api('/api/pick-folder', { body: { initial: $('l-cwd').value } }); if (r.path) { $('l-cwd').value = r.path; preview(); if (ac) ac.refresh(); } }
     catch (e) { toast(e.message, 'err'); }
     $('l-browse').disabled = false;
   });
@@ -1158,6 +1374,20 @@ const ACTIONS = {
     if (v === 'ok') { try { await api('/api/quit', { body: {} }); } catch { /* exiting */ } }
   },
   palette: () => openPalette(),
+  'update-open': () => updateDialog(),
+  'update-check': async (el) => { el.disabled = true; await checkForUpdates(); el.disabled = false; },
+  'open-url': (el) => { const u = el.dataset.url || ''; if (u.startsWith('https://')) api('/api/open-url', { body: { url: u } }).catch((e) => toast(e.message, 'err')); },
+  'recover-one': (el) => { const r = recoveryItems().find((x) => x.sessionId === el.dataset.sid); if (r) resumeRecovered([r]); },
+  'recover-all': () => resumeRecovered(recoveryItems()),
+  'recover-review': () => recoveryReview(),
+  'recover-dismiss': () => dismissRecovery(recoveryItems()),
+  'bubble-reset': () => saveSetting('bubblePos', null),
+  'focus-term': async (el) => {
+    try {
+      const r = await api('/api/focus', { body: { sessionId: el.dataset.sid } });
+      if (r.result === 'none') toast("Couldn't find its terminal window", 'err');
+    } catch (e) { toast(e.message, 'err'); }
+  },
 };
 
 async function stopPid(pid) {
@@ -1311,6 +1541,10 @@ let reloadTimer = null;
 function connectEvents() {
   // The main process pushes an update whenever transcripts change or a live session's status changes.
   window.launcher.onUpdate((d) => {
+    if (S.data && (d.upd || '') !== ((S.data.meta.update && S.data.meta.update.available && S.data.meta.update.latest.version) || '')) {
+      api('/api/update').then((u) => { S.data.meta.update = u; render(); }).catch(() => {});
+    }
+    if (S.data && d.attention) S.data.attention = d.attention;
     if (d.rev !== S.rev) {
       clearTimeout(reloadTimer);
       reloadTimer = setTimeout(() => loadState().catch(() => {}), 300);

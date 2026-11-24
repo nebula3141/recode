@@ -15,8 +15,11 @@ A Windows desktop app for picking up Claude Code work. It lists every Claude Cod
 - **Projects** — every folder you've used Claude Code in, with New session / Resume latest.
 - **Prompt history** — every prompt you've typed, including sessions whose transcripts Claude Code has since cleaned up.
 - **Insights** — active hours per day, when you work, where your time went, tools and models used.
+- **Attention bubble** — a small floating bubble (always on top, never steals focus) that lights up amber when a session is waiting on you and green when one has finished its work. Click it to jump straight to that session's Windows Terminal tab; with several, it opens a short list. Drag it anywhere; it snaps to the screen edge. Optional Windows notifications, tray icon, keep-running-in-background and start-with-Windows.
+- **Crash recovery** — if Claude Code, the terminal, ReCode or the PC goes down, ReCode offers to resume the sessions that were open (Resume all, pick some, or dismiss). It uses the session files Claude Code leaves behind plus ReCode's own snapshot of what was running.
+- **Updates** — checks GitHub Releases (stable, or release candidates too), shows the release notes, and updates itself in place after verifying the download's SHA-256.
 
-**Resume** opens Windows Terminal (or a PowerShell window) in the session's folder and runs `claude --resume <id>`. **Fork** runs `claude --resume <id> --fork-session`. **Options…** lets you choose the model, permission mode, effort, a message to send, Remote Control, extra directories and raw CLI flags, with a live preview of the exact command. Double-click any session to resume it.
+**Resume** opens Windows Terminal (or a PowerShell window) in the session's folder and runs `claude --resume <id>`. **Fork** runs `claude --resume <id> --fork-session`. **Options…** lets you choose the model, permission mode, effort, a message to send, Remote Control, extra directories and raw CLI flags, with a live preview of the exact command. The folder box autocompletes: known projects first, then real folders as you type a path (`Tab` completes and steps into a folder). Double-click any session to resume it.
 
 Keyboard: `Ctrl K` search everything · `N` new session · `/` search · `J`/`K` move · `Enter` resume · `F` fork · `P` pin · `O` open folder · `Esc` close.
 
@@ -66,10 +69,14 @@ Requires Node.js to build, and Claude Code (`claude`) on PATH (or set its full p
 ```
 electron/main.js      window, IPC, live-update ticker
 electron/preload.js   narrow bridge exposed to the UI as window.launcher
+electron/bubble.js    the floating attention bubble window
 lib/indexer.js        incremental transcript + history indexer
 lib/service.js        derived views (sessions, projects, activity, search) and request router
 lib/launch.js         terminal launching (argument-exact via -EncodedCommand), OS actions
-lib/live.js           running-session detection
+lib/live.js           running-session detection (and session files left behind by crashes)
+lib/focus.js          brings a session's terminal tab to the front (UI Automation)
+lib/complete.js       folder autocomplete
+lib/update.js         GitHub release check, download, verify, self-update
 lib/store.js          launcher settings, pins/notes/tags, presets
 public/               the UI (plain HTML/CSS/JS, no build step)
 scripts/              icon generation, packaging, shortcut installer, demo data

@@ -377,7 +377,7 @@ button.chip:hover { color: var(--text); }
 .proj { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .proj:hover { border-color: var(--line-2); }
 .proj .n { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-.proj .path { font: 11.5px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.proj .path { font: 11.5px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proj .m { display: flex; gap: 12px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
 .proj .acts { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
 .proj.missing { opacity: 0.6; }
@@ -461,3 +461,36 @@ button.chip:hover { color: var(--text); }
 
 .field .seg { align-self: flex-start; }
 .no-motion *, .no-motion *::before, .no-motion *::after { animation: none !important; transition: none !important; }
+
+/* ---------- update pill / dialog ---------- */
+.pill.update { background: var(--accent-soft); color: var(--accent); }
+.pill.update:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.update-notes { max-height: 300px; overflow: auto; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r); font-size: 13px; }
+.progress { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.progress > div { height: 100%; background: var(--accent); border-radius: 3px; transition: width .25s ease-out; }
+.err-box { padding: 8px 10px; border-radius: var(--r); background: var(--danger-soft); color: var(--danger); font-size: 13px; }
+
+/* ---------- interrupted sessions ---------- */
+.recovery { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; border-color: color-mix(in srgb, var(--wait) 40%, var(--line)); background: color-mix(in srgb, var(--wait) 5%, var(--surface)); }
+.recovery .rec-ic { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--wait-soft); color: var(--wait); }
+.recovery .rec-t { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+.rec-list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.rec-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; min-width: 0; }
+.rec-row .grow { min-width: 0; }
+.rec-pick { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--line); min-width: 0; }
+.rec-pick .grow { min-width: 0; }
+
+/* ---------- folder autocomplete ---------- */
+.ac-wrap { position: relative; min-width: 0; }
+.ac-wrap > .input { width: 100%; }
+.ac { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30; max-height: 280px; overflow-y: auto; padding: 4px;
+  background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-lg); box-shadow: var(--shadow); }
+.ac-item { display: grid; grid-template-columns: 20px minmax(0, auto) minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--r); cursor: pointer; font-size: 13px; }
+.ac-item.on { background: var(--surface-3); }
+.ac-ic { color: var(--muted); display: grid; place-items: center; }
+.ac-item.on .ac-ic { color: var(--accent); }
+.ac-name { font-weight: 500; }
+.ac-path { font-size: 12px; font-family: var(--mono); }
+.ac-meta { font-size: 11.5px; }
+.ac-hint.ok { color: var(--live); }
+.ac-hint.warn { color: var(--wait); }

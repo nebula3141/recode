@@ -35,6 +35,8 @@
       "electron/**",
       "lib/**",
       "public/**",
+      "build/icon.ico",
+      "build/icon.png",
       "package.json",
       "LICENSE"
     ],
