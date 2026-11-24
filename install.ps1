@@ -57,7 +57,10 @@ if ($Version) {
   $tag = if ($Version.StartsWith('v')) { $Version } else { "v$Version" }
   $release = Invoke-RestMethod -Headers $Headers -Uri "https://api.github.com/repos/$Repo/releases/tags/$tag"
 } else {
-  $all = @(Invoke-RestMethod -Headers $Headers -Uri "https://api.github.com/repos/$Repo/releases?per_page=30") | Where-Object { -not $_.draft }
+  # Windows PowerShell 5.1 passes a JSON array down the pipeline as ONE object, so unroll it
+  # explicitly before filtering (otherwise any list of 2+ releases filters to nothing).
+  $resp = Invoke-RestMethod -Headers $Headers -Uri "https://api.github.com/repos/$Repo/releases?per_page=30"
+  $all = @($resp | ForEach-Object { $_ } | Where-Object { -not $_.draft } | Sort-Object { [DateTime]$_.published_at } -Descending)
   $stable = @($all | Where-Object { -not $_.prerelease })
   $release = if ($Prerelease -or -not $stable.Count) { $all | Select-Object -First 1 } else { $stable | Select-Object -First 1 }
 }
